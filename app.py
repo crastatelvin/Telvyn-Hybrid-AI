@@ -53,7 +53,6 @@ st.markdown("---")
 # Sidebar for Management
 with st.sidebar:
     st.header("🔐 Access Control")
-    admin_password_input = st.text_input("Admin Password", type="password")
     
     # Get password from Env or Secrets
     stored_password = os.getenv("ADMIN_PASSWORD")
@@ -61,11 +60,22 @@ with st.sidebar:
         stored_password = st.secrets["ADMIN_PASSWORD"]
     if not stored_password:
         stored_password = "telvyn_admin" # Default fallback
-        
-    is_admin = admin_password_input == stored_password
-    
-    if is_admin:
+
+    if "admin_logged_in" not in st.session_state:
+        st.session_state.admin_logged_in = False
+
+    if not st.session_state.admin_logged_in:
+        admin_password_input = st.text_input("Admin Password", type="password")
+        if admin_password_input == stored_password:
+            st.session_state.admin_logged_in = True
+            st.rerun()
+        elif admin_password_input:
+            st.error("Invalid Password")
+    else:
         st.success("Admin Access Granted")
+        if st.button("🔓 Logout"):
+            st.session_state.admin_logged_in = False
+            st.rerun()
         st.markdown("---")
         st.header("⚙️ System Management")
         
@@ -96,17 +106,16 @@ with st.sidebar:
                     st.success("Knowledge Base Synced!")
                 except Exception as e:
                     st.error(f"Sync failed: {e}")
-    else:
-        if admin_password_input:
-            st.error("Invalid Password")
-        st.info("End-user mode: Chat interface only.")
+        
+        st.markdown("---")
+        if st.button("🗑️ Clear Chat History"):
+            st.session_state.messages = []
+            if os.path.exists(HISTORY_FILE):
+                os.remove(HISTORY_FILE)
+            st.rerun()
 
-    st.markdown("---")
-    if st.button("🗑️ Clear Chat History"):
-        st.session_state.messages = []
-        if os.path.exists(HISTORY_FILE):
-            os.remove(HISTORY_FILE)
-        st.rerun()
+    if not st.session_state.admin_logged_in:
+        st.info("End-user mode: Chat interface only.")
 
     st.markdown("---")
     st.info("Telvyn uses local RAG and Groq (Llama 3.3 70B) for inference.")
