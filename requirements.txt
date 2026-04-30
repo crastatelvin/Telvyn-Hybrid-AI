@@ -7,3 +7,4 @@ chromadb
 sentence-transformers
 rank_bm25
 gitpython
+protobuf==3.20.0
