@@ -5,6 +5,8 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from langchain.retrievers import EnsembleRetriever
+from langchain_community.retrievers import BM25Retriever
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -52,29 +54,56 @@ class TelvynManager:
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         self.db_dir = db_dir
         
-        # Initialize vector store
-        if os.path.exists(self.db_dir):
-            self.vector_db = Chroma(
-                persist_directory=self.db_dir, 
-                embedding_function=self.embeddings
-            )
-        else:
-            self.vector_db = None
+        # Initialize retrievers
+        self.ensemble_retriever = self._initialize_retriever()
+
+    def _initialize_retriever(self):
+        if not os.path.exists(self.db_dir):
+            return None
+            
+        # 1. Vector Retriever (Chroma)
+        vector_db = Chroma(
+            persist_directory=self.db_dir, 
+            embedding_function=self.embeddings
+        )
+        vector_retriever = vector_db.as_retriever(search_kwargs={"k": 3})
+        
+        # 2. Keyword Retriever (BM25)
+        # Extract all documents from Chroma to build BM25 index
+        all_docs = vector_db.get()
+        if not all_docs or not all_docs['documents']:
+            return vector_retriever
+            
+        # Re-create Document objects for BM25
+        from langchain_core.documents import Document
+        docs = [
+            Document(page_content=content, metadata=metadata) 
+            for content, metadata in zip(all_docs['documents'], all_docs['metadatas'])
+        ]
+        
+        keyword_retriever = BM25Retriever.from_documents(docs)
+        keyword_retriever.k = 3
+        
+        # 3. Combine them (Ensemble)
+        # Weights: 0.7 for Vector, 0.3 for Keyword (adjustable)
+        ensemble = EnsembleRetriever(
+            retrievers=[vector_retriever, keyword_retriever],
+            weights=[0.7, 0.3]
+        )
+        return ensemble
 
     def get_response(self, user_query):
-        if not self.vector_db:
+        if not self.ensemble_retriever:
             return "Knowledge base not initialized. Please run ingestion first."
 
-        retriever = self.vector_db.as_retriever(search_kwargs={"k": 3})
-        
         prompt = ChatPromptTemplate.from_messages([
             ("system", TELVYN_SYSTEM_PROMPT),
             ("human", "{input}")
         ])
         
-        # LCEL Chain
+        # LCEL Chain with Ensemble Retriever
         rag_chain = (
-            {"context": retriever | format_docs, "input": RunnablePassthrough()}
+            {"context": self.ensemble_retriever | format_docs, "input": RunnablePassthrough()}
             | prompt
             | self.llm
             | StrOutputParser()
