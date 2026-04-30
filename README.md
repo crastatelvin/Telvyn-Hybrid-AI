@@ -55,6 +55,40 @@ TELVYN addresses the gap between static RAG systems and live technical operation
 
 ---
 
+## 🖼️ Application Preview
+
+<div align="center">
+
+### 1) Professional Architect Interface
+*Sleek, dark-mode dashboard with real-time streaming.*
+
+![Main Dashboard](docs/screenshots/01-main-dashboard.png)
+
+<br/>
+
+### 2) Admin Governance Sidebar
+*Secure management of knowledge, indexing, and session history.*
+
+![Admin Sidebar](docs/screenshots/02-admin-sidebar.png)
+
+<br/>
+
+### 3) Agent Reasoning & Web Search
+*Watch Telvyn think and browse the web for live technical data.*
+
+![Web Search](docs/screenshots/03-web-search.png)
+
+<br/>
+
+### 4) Interactive Learning
+*Documenting and remembering new technical facts in real-time.*
+
+![Interactive Training](docs/screenshots/04-interactive-training.png)
+
+</div>
+
+---
+
 ## 🖼️ Video Demonstration
 
 <div align="center">
