@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+import json
+from datetime import datetime
 from src.llm_manager import TelvynManager
 from src.ingestor import TelvynIngestor
 from dotenv import load_dotenv
@@ -7,6 +9,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 st.set_page_config(page_title="Telvyn Hybrid AI", page_icon="🧠", layout="wide")
+
+# Persistence Helpers
+HISTORY_FILE = "data/chat_history.json"
+
+def save_history(messages):
+    os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(messages, f)
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
 
 # Custom CSS for Premium Look
 st.markdown("""
@@ -82,6 +101,13 @@ with st.sidebar:
         st.info("End-user mode: Chat interface only.")
 
     st.markdown("---")
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.messages = []
+        if os.path.exists(HISTORY_FILE):
+            os.remove(HISTORY_FILE)
+        st.rerun()
+
+    st.markdown("---")
     st.info("Telvyn uses local RAG and Groq (Llama 3.3 70B) for inference.")
 
 # Initialize Manager
@@ -93,7 +119,7 @@ except Exception as e:
 
 # Chat History Management
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = load_history()
 
 # Display Chat History
 for message in st.session_state.messages:
@@ -114,5 +140,7 @@ if prompt := st.chat_input("Ask Telvyn anything..."):
                 response = st.session_state.telvyn.get_response(prompt)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "ai", "content": response})
+                # Save after AI response
+                save_history(st.session_state.messages)
             except Exception as e:
                 st.error(f"Error generating response: {e}")
