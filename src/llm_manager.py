@@ -5,23 +5,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-try:
-    from langchain.retrievers import EnsembleRetriever
-except ImportError:
-    try:
-        from langchain.retrievers.ensemble_retriever import EnsembleRetriever
-    except ImportError:
-        try:
-            from langchain_community.retrievers import EnsembleRetriever
-        except ImportError:
-            try:
-                from langchain_community.retrievers.ensemble_retriever import EnsembleRetriever
-            except ImportError:
-                try:
-                    from langchain.retrievers.ensemble import EnsembleRetriever
-                except ImportError:
-                    # Final attempt from core if it ever moved there
-                    from langchain_core.retrievers import EnsembleRetriever
+from langchain.retrievers import EnsembleRetriever
 
 from langchain_community.retrievers import BM25Retriever
 from dotenv import load_dotenv
