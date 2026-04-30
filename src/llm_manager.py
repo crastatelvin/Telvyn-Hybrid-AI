@@ -5,7 +5,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain.retrievers import EnsembleRetriever
+from langchain.retrievers.ensemble_retriever import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from dotenv import load_dotenv
 
