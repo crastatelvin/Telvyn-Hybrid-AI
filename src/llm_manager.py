@@ -14,8 +14,14 @@ except ImportError:
         try:
             from langchain_community.retrievers import EnsembleRetriever
         except ImportError:
-            # Fallback for some newer versions
-            from langchain.retrievers.ensemble import EnsembleRetriever
+            try:
+                from langchain_community.retrievers.ensemble_retriever import EnsembleRetriever
+            except ImportError:
+                try:
+                    from langchain.retrievers.ensemble import EnsembleRetriever
+                except ImportError:
+                    # Final attempt from core if it ever moved there
+                    from langchain_core.retrievers import EnsembleRetriever
 
 from langchain_community.retrievers import BM25Retriever
 from dotenv import load_dotenv
