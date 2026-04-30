@@ -32,36 +32,55 @@ st.markdown("---")
 
 # Sidebar for Management
 with st.sidebar:
-    st.header("⚙️ System Management")
+    st.header("🔐 Access Control")
+    admin_password_input = st.text_input("Admin Password", type="password")
     
-    # File Uploader
-    uploaded_files = st.file_uploader("📂 Upload Knowledge (.md)", type=["md"], accept_multiple_files=True)
-    if uploaded_files:
-        if st.button("💾 Save Uploaded Files"):
-            knowledge_dir = os.getenv("KNOWLEDGE_DIR", "./knowledge")
-            if not os.path.exists(knowledge_dir):
-                os.makedirs(knowledge_dir)
-            
-            for uploaded_file in uploaded_files:
-                file_path = os.path.join(knowledge_dir, uploaded_file.name)
-                with open(file_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-            st.success(f"Successfully saved {len(uploaded_files)} files to {knowledge_dir}!")
-            st.info("Don't forget to click 'Sync Knowledge Base' below to update Telvyn.")
+    # Get password from Env or Secrets
+    stored_password = os.getenv("ADMIN_PASSWORD")
+    if not stored_password and "ADMIN_PASSWORD" in st.secrets:
+        stored_password = st.secrets["ADMIN_PASSWORD"]
+    if not stored_password:
+        stored_password = "telvyn_admin" # Default fallback
+        
+    is_admin = admin_password_input == stored_password
+    
+    if is_admin:
+        st.success("Admin Access Granted")
+        st.markdown("---")
+        st.header("⚙️ System Management")
+        
+        # File Uploader
+        uploaded_files = st.file_uploader("📂 Upload Knowledge (.md)", type=["md"], accept_multiple_files=True)
+        if uploaded_files:
+            if st.button("💾 Save Uploaded Files"):
+                knowledge_dir = os.getenv("KNOWLEDGE_DIR", "./knowledge")
+                if not os.path.exists(knowledge_dir):
+                    os.makedirs(knowledge_dir)
+                
+                for uploaded_file in uploaded_files:
+                    file_path = os.path.join(knowledge_dir, uploaded_file.name)
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                st.success(f"Successfully saved {len(uploaded_files)} files!")
+                st.info("Sync below to update Telvyn.")
 
-    st.markdown("---")
-    
-    if st.button("🔄 Sync Knowledge Base"):
-        with st.spinner("Indexing documents..."):
-            try:
-                ingestor = TelvynIngestor()
-                ingestor.sync_knowledge()
-                # Re-initialize manager to pick up the new vector store
-                st.session_state.telvyn = TelvynManager()
-                st.success("Knowledge Base Synced!")
-            except Exception as e:
-                st.error(f"Sync failed: {e}")
-    
+        st.markdown("---")
+        
+        if st.button("🔄 Sync Knowledge Base"):
+            with st.spinner("Indexing documents..."):
+                try:
+                    ingestor = TelvynIngestor()
+                    ingestor.sync_knowledge()
+                    # Re-initialize manager to pick up the new vector store
+                    st.session_state.telvyn = TelvynManager()
+                    st.success("Knowledge Base Synced!")
+                except Exception as e:
+                    st.error(f"Sync failed: {e}")
+    else:
+        if admin_password:
+            st.error("Invalid Password")
+        st.info("End-user mode: Chat interface only.")
+
     st.markdown("---")
     st.info("Telvyn uses local RAG and Groq (Llama 3.3 70B) for inference.")
 

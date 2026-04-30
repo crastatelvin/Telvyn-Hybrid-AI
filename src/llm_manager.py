@@ -29,9 +29,19 @@ def format_docs(docs):
 
 class TelvynManager:
     def __init__(self, db_dir="./data/chroma_db"):
+        # Try os.getenv first, then streamlit secrets
         self.api_key = os.getenv("GROQ_API_KEY")
+        
         if not self.api_key:
-            raise ValueError("GROQ_API_KEY not found in environment.")
+            try:
+                import streamlit as st
+                if "GROQ_API_KEY" in st.secrets:
+                    self.api_key = st.secrets["GROQ_API_KEY"]
+            except ImportError:
+                pass
+
+        if not self.api_key:
+            raise ValueError("GROQ_API_KEY not found in environment or secrets.")
             
         self.llm = ChatGroq(
             temperature=0.2,
