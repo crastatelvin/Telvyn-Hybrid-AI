@@ -107,17 +107,13 @@ with st.sidebar:
                 except Exception as e:
                     st.error(f"Sync failed: {e}")
         
-        st.markdown("---")
-        if st.button("🗑️ Clear Chat History"):
-            st.session_state.messages = []
-            if os.path.exists(HISTORY_FILE):
-                os.remove(HISTORY_FILE)
-            st.rerun()
-
-    if not st.session_state.admin_logged_in:
-        st.info("End-user mode: Chat interface only.")
-
     st.markdown("---")
+    if st.button("🧹 New Chat / Clear History"):
+        st.session_state.messages = []
+        if os.path.exists(HISTORY_FILE):
+            os.remove(HISTORY_FILE)
+        st.rerun()
+
     st.info("Telvyn uses local RAG and Groq (Llama 3.3 70B) for inference.")
 
 # Initialize Manager
