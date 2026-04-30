@@ -34,6 +34,23 @@ st.markdown("---")
 with st.sidebar:
     st.header("⚙️ System Management")
     
+    # File Uploader
+    uploaded_files = st.file_uploader("📂 Upload Knowledge (.md)", type=["md"], accept_multiple_files=True)
+    if uploaded_files:
+        if st.button("💾 Save Uploaded Files"):
+            knowledge_dir = os.getenv("KNOWLEDGE_DIR", "./knowledge")
+            if not os.path.exists(knowledge_dir):
+                os.makedirs(knowledge_dir)
+            
+            for uploaded_file in uploaded_files:
+                file_path = os.path.join(knowledge_dir, uploaded_file.name)
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+            st.success(f"Successfully saved {len(uploaded_files)} files to {knowledge_dir}!")
+            st.info("Don't forget to click 'Sync Knowledge Base' below to update Telvyn.")
+
+    st.markdown("---")
+    
     if st.button("🔄 Sync Knowledge Base"):
         with st.spinner("Indexing documents..."):
             try:
