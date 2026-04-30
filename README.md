@@ -10,6 +10,11 @@
 [![Groq](https://img.shields.io/badge/Inference-Groq_Llama_3.3-f55036?style=for-the-badge)](https://groq.com/)
 [![ChromaDB](https://img.shields.io/badge/Vector_DB-Chroma-3178C6?style=for-the-badge)](https://www.trychroma.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit_Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://telvyn-hybrid-ai-1111.streamlit.app/)
+
+<br/>
+
+**Topics:** `LangChain` • `Groq` • `RAG` • `Hybrid Search` • `Agentic AI` • `Llama 3.3` • `Python` • `Streamlit`
 
 <br/>
 
@@ -175,6 +180,8 @@ streamlit run app.py
 ---
 
 ## 💻 Usage
+
+> **Live Application:** [telvyn-hybrid-ai-1111.streamlit.app](https://telvyn-hybrid-ai-1111.streamlit.app/)
 
 1.  **Authenticate:** Open the sidebar and enter your Admin password.
 2.  **Knowledge Sync:** Upload your technical `.md` files and click **"Sync Knowledge Base"**.
