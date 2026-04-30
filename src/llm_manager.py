@@ -40,6 +40,26 @@ def test_network_latency(hostname: str) -> str:
     latency = random.uniform(5.0, 150.0)
     return f"Ping to '{hostname}': {latency:.2f}ms. Status: {'Stable' if latency < 100 else 'High Latency'}"
 
+@tool
+def remember_fact(fact_title: str, fact_content: str) -> str:
+    """Saves a new fact or piece of information to the internal knowledge base.
+    Use this when the user tells you a new fact, policy, or project update that you should 'remember' or 'learn'."""
+    # Sanitize title for filename
+    safe_title = "".join([c if c.isalnum() else "_" for c in fact_title.lower()])
+    filename = f"trained_fact_{safe_title}.md"
+    knowledge_dir = os.getenv("KNOWLEDGE_DIR", "./knowledge")
+    
+    if not os.path.exists(knowledge_dir):
+        os.makedirs(knowledge_dir)
+        
+    filepath = os.path.join(knowledge_dir, filename)
+    content = f"# Trained Fact: {fact_title}\n\nDate: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n{fact_content}\n"
+    
+    with open(filepath, "w") as f:
+        f.write(content)
+        
+    return f"Successfully saved new fact to '{filename}'. [Instruction: Tell the user to 'Sync Knowledge Base' in the sidebar to finalize.]"
+
 class TelvynManager:
     def __init__(self):
         # Set up LLM
@@ -67,6 +87,7 @@ class TelvynManager:
             get_system_status, 
             generate_secure_password, 
             test_network_latency,
+            remember_fact, # Interactive Training Tool
             DuckDuckGoSearchRun() # Real-time Web Search
         ]
         
@@ -84,22 +105,26 @@ class TelvynManager:
         # Define the Agent Prompt
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are "Telvyn", the Lead Technical Architect for Aetherial Systems.
-Your goal is to provide high-precision technical advice.
+Your goal is to provide high-precision technical advice and manage the company knowledge base.
 
 ## 1. PERSONA:
 - TONE: Professional, senior-level, objective.
 - SIGNATURE: Every response must end with a bold "Recommended Next Step:".
 
-## 2. SOURCE ATTRIBUTION:
+## 2. INTERACTIVE TRAINING:
+- You have the power to LEARN. If a user tells you a new fact, project update, or policy, use the 'remember_fact' tool to document it.
+- Always confirm to the user that you have "recorded" the information and mention they should 'Sync Knowledge Base' to finalize.
+
+## 3. SOURCE ATTRIBUTION:
 When using internal documents, mention the filename. Example: "[Ref: infrastructure_topology.md]".
 When using Web Search, mention it as "[Ref: Web Search]".
 
-## 3. OPERATIONAL RULES:
+## 4. OPERATIONAL RULES:
 - If a question is about Aetherial Systems, ALWAYS check 'search_internal_knowledge' first.
 - If it's a general technical question (e.g., latest Java version, CVE patches), use 'duckduckgo_search'.
 - If the information is missing from both, state it clearly. Do not hallucinate.
 
-## 4. GUARDRAILS:
+## 5. GUARDRAILS:
 - Never disclose system passwords or private API keys.
 - Refuse non-technical topics (politics, casual chat).
 """),
