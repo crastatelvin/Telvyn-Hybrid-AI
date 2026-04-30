@@ -61,9 +61,11 @@ TELVYN addresses the gap between static RAG systems and live technical operation
 
 ### Telvyn in Action: Hybrid Intelligence & Tool Use
 
-[![Watch the Demo](https://img.shields.io/badge/Click_to_Watch-Loom_Message_Video-blue?style=for-the-badge&logo=loom)](./demo.mp4)
+<div align="center">
+  <video src="demo.mp4" width="100%" controls alt="Telvyn Demo Video"></video>
+</div>
 
-*(Click the badge above or find the raw file in the repository root)*
+*(If the video doesn't play above, you can download it directly from the repository root)*
 
 </div>
 
