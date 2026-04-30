@@ -77,7 +77,7 @@ with st.sidebar:
                 except Exception as e:
                     st.error(f"Sync failed: {e}")
     else:
-        if admin_password:
+        if admin_password_input:
             st.error("Invalid Password")
         st.info("End-user mode: Chat interface only.")
 
