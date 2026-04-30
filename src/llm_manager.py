@@ -26,9 +26,13 @@ def get_system_status(component_name: str) -> str:
     return f"Component '{component_name}' is currently: {status}. [Verified: {time.strftime('%H:%M:%S')}]"
 
 @tool
-def generate_secure_password(length: int = 24) -> str:
+def generate_secure_password(length_input: str = "24") -> str:
     """Generates a high-entropy technical password for system configurations. 
-    Use this when a user asks for a new password or secret string."""
+    Input should be the desired length as a string."""
+    try:
+        length = int(str(length_input))
+    except:
+        length = 24
     alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
     password = ''.join(secrets.choice(alphabet) for i in range(length))
     return f"Generated Secure Password: {password}"
@@ -41,23 +45,32 @@ def test_network_latency(hostname: str) -> str:
     return f"Ping to '{hostname}': {latency:.2f}ms. Status: {'Stable' if latency < 100 else 'High Latency'}"
 
 @tool
-def remember_fact(fact_title: str, fact_content: str) -> str:
-    """Saves a new fact or piece of information to the internal knowledge base.
-    Use this when the user tells you a new fact, policy, or project update."""
-    safe_title = "".join([c if c.isalnum() else "_" for c in fact_title.lower()])
-    filename = f"trained_fact_{safe_title}.md"
-    knowledge_dir = os.getenv("KNOWLEDGE_DIR", "./knowledge")
-    
-    if not os.path.exists(knowledge_dir):
-        os.makedirs(knowledge_dir)
+def remember_fact(training_input: str) -> str:
+    """Saves a new fact to the internal knowledge base. 
+    Format your input as: 'Title | Content'"""
+    try:
+        if "|" in training_input:
+            fact_title, fact_content = training_input.split("|", 1)
+        else:
+            fact_title = "User Fact " + time.strftime("%H%M%S")
+            fact_content = training_input
+            
+        safe_title = "".join([c if c.isalnum() else "_" for c in fact_title.strip().lower()])
+        filename = f"trained_fact_{safe_title}.md"
+        knowledge_dir = os.getenv("KNOWLEDGE_DIR", "./knowledge")
         
-    filepath = os.path.join(knowledge_dir, filename)
-    content = f"# Trained Fact: {fact_title}\n\nDate: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n{fact_content}\n"
-    
-    with open(filepath, "w") as f:
-        f.write(content)
+        if not os.path.exists(knowledge_dir):
+            os.makedirs(knowledge_dir)
+            
+        filepath = os.path.join(knowledge_dir, filename)
+        content = f"# Trained Fact: {fact_title.strip()}\n\nDate: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n{fact_content.strip()}\n"
         
-    return f"SUCCESS: New fact saved to '{filename}'. IMPORTANT: Tell the user they MUST click 'Sync Knowledge Base' in the sidebar for me to actually learn it."
+        with open(filepath, "w") as f:
+            f.write(content)
+            
+        return f"SUCCESS: New fact saved to '{filename}'. IMPORTANT: Tell the user they MUST click 'Sync Knowledge Base' in the sidebar for me to actually learn it."
+    except Exception as e:
+        return f"ERROR saving fact: {str(e)}"
 
 class TelvynManager:
     def __init__(self):
@@ -67,7 +80,7 @@ class TelvynManager:
             temperature=0.1
         )
         
-        # Consistent path with ingestor.py
+        # Consistent path
         self.persist_directory = os.getenv("DB_DIR", "./data/chroma_db")
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         
@@ -101,7 +114,7 @@ class TelvynManager:
             
             self.tools.append(search_internal_knowledge)
 
-        # ReAct Prompt - Very stable for Llama models
+        # ReAct Prompt
         template = """You are "Telvyn", the Lead Technical Architect for Aetherial Systems.
 You have access to the following tools:
 
@@ -123,7 +136,7 @@ Rules:
 1. ALWAYS use the 'Final Answer' format for your final response.
 2. CITATIONS: Mention filenames like [Ref: file.md] if using internal knowledge.
 3. SIGNATURE: End every 'Final Answer' with a bold "Recommended Next Step:".
-4. If asked about company data, use 'search_internal_knowledge' first.
+4. TRAINING: When using 'remember_fact', always use the format: 'Title | Content'.
 
 Chat History:
 {chat_history}
@@ -146,10 +159,10 @@ Thought: {agent_scratchpad}"""
 
     def _initialize_retriever(self):
         try:
-            # 1. Vector Store Retriever (Semantic)
+            # 1. Vector Store Retriever
             vector_retriever = self.vector_db.as_retriever(search_kwargs={"k": 3})
             
-            # 2. BM25 Retriever (Keywords)
+            # 2. BM25 Retriever
             data = self.vector_db.get()
             docs = data['documents']
             metadatas = data['metadatas']
@@ -171,9 +184,8 @@ Thought: {agent_scratchpad}"""
             self.retriever = None
 
     def get_response(self, user_input, chat_history=[]):
-        # Format history for ReAct
         history_str = ""
-        for msg in chat_history[-5:]: # Only last 5 messages for token efficiency
+        for msg in chat_history[-5:]:
             history_str += f"{msg['role'].capitalize()}: {msg['content']}\n"
 
         try:
