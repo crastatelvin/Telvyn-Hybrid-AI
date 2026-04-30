@@ -61,9 +61,11 @@ TELVYN addresses the gap between static RAG systems and live technical operation
 
 ### Telvyn in Action: Hybrid Intelligence & Tool Use
 
-https://github.com/crastatelvin/Telvyn-Hybrid-AI/blob/master/demo.mp4?raw=true
+<div align="center">
+  <video src="https://raw.githubusercontent.com/crastatelvin/Telvyn-Hybrid-AI/master/demo.mp4" width="100%" controls alt="Telvyn Demo Video"></video>
+</div>
 
-*(If the video doesn't play above, click the link to view it on GitHub or download the raw file)*
+*(If the video doesn't play above, [Click Here to View the Video](https://raw.githubusercontent.com/crastatelvin/Telvyn-Hybrid-AI/master/demo.mp4) directly)*
 
 </div>
 
