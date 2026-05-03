@@ -1,11 +1,14 @@
 import os
 import time
+from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 
-@tool
+class RememberFactInput(BaseModel):
+    training_input: str = Field(description="The fact to remember, formatted as 'Title | Content'")
+
+@tool(args_schema=RememberFactInput)
 def remember_fact(training_input: str) -> str:
-    """Saves a new fact to the internal knowledge base. 
-    Format your input as: 'Title | Content'"""
+    """Saves a new fact to the internal knowledge base."""
     try:
         if "|" in training_input:
             fact_title, fact_content = training_input.split("|", 1)

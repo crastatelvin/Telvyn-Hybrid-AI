@@ -16,21 +16,41 @@ st.set_page_config(page_title="Telvyn Hybrid AI", page_icon="🧠", layout="wide
 init_db()
 SESSION_ID = "default_session" # Can be dynamic for multi-user
 
-# Custom CSS for Premium Look
+# Custom CSS for Premium Glassmorphism Look
 st.markdown("""
     <style>
     .main {
-        background-color: #0e1117;
-        color: #ffffff;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #f8fafc;
     }
     .stChatMessage {
-        border-radius: 15px;
-        padding: 10px;
-        margin-bottom: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
-    .sidebar .sidebar-content {
-        background-image: linear-gradient(#2e7bcf,#2e7bcf);
+    .stSidebar {
+        background: rgba(15, 23, 42, 0.95);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stButton>button {
+        border-radius: 8px;
+        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
         color: white;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+    h1, h2, h3 {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        letter-spacing: -0.025em;
     }
     </style>
     """, unsafe_allow_html=True)
