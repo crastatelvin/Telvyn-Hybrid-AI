@@ -106,3 +106,16 @@ def get_total_tokens(session_id):
         return result or 0
     finally:
         db.close()
+
+def get_all_sessions():
+    db = SessionLocal()
+    try:
+        from sqlalchemy import func
+        # Get unique session IDs and their latest message timestamp
+        sessions = db.query(
+            ChatMessage.session_id, 
+            func.max(ChatMessage.timestamp).label('last_active')
+        ).group_by(ChatMessage.session_id).order_by(func.max(ChatMessage.timestamp).desc()).all()
+        return [{"id": s.session_id, "last_active": s.last_active.isoformat()} for s in sessions]
+    finally:
+        db.close()

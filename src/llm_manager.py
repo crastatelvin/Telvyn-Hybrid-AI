@@ -1,70 +1,52 @@
 import os
-import secrets
-import random
 import time
-import importlib
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
-from langchain_core.prompts import PromptTemplate
-from langchain_community.vectorstores import FAISS
+from typing import Annotated, List, Union, TypedDict
+from langchain_groq import ChatGroq
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-def safe_import(module_paths, class_name):
-    for path in module_paths:
-        try:
-            mod = importlib.import_module(path)
-            return getattr(mod, class_name)
-        except (ImportError, AttributeError, ModuleNotFoundError):
-            continue
-    return None
-
-EnsembleRetriever = safe_import(['langchain.retrievers', 'langchain_classic.retrievers', 'langchain_community.retrievers'], 'EnsembleRetriever')
-BM25Retriever = safe_import(['langchain.retrievers', 'langchain_classic.retrievers', 'langchain_community.retrievers'], 'BM25Retriever')
-AgentExecutor = safe_import(['langchain.agents', 'langchain_classic.agents'], 'AgentExecutor')
-create_react_agent = safe_import(['langchain.agents', 'langchain_classic.agents'], 'create_react_agent')
-
+from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode
 from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from src.tools.system_tools import get_system_status, generate_secure_password, test_network_latency
 from src.tools.knowledge_tools import remember_fact
 from src.database import engine, log_token_usage
+from langchain_core.globals import set_llm_cache
+from langchain_community.cache import SQLAlchemyCache
+from dotenv import load_dotenv
 
-set_llm_cache = safe_import(['langchain_core.globals', 'langchain.globals'], 'set_llm_cache')
-SQLAlchemyCache = safe_import(['langchain_community.cache', 'langchain.cache'], 'SQLAlchemyCache')
-load_dotenv = safe_import(['dotenv'], 'load_dotenv')
-if load_dotenv:
-    load_dotenv()
+load_dotenv()
 
 # --- CACHING SETUP ---
-# Enable persistent caching of LLM responses in our SQLite database
 try:
     set_llm_cache(SQLAlchemyCache(engine))
 except Exception as e:
     print(f"Caching initialization failed: {e}")
 
-# Tools are now imported from src.tools
+class AgentState(TypedDict):
+    messages: Annotated[List[BaseMessage], lambda x, y: x + y]
 
 class TelvynManager:
     def __init__(self):
-        # Set up LLM with NVIDIA NIM
-        self.llm = ChatNVIDIA(
-            model="meta/llama-3.1-70b-instruct",
+        # Set up LLM with Groq
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
             temperature=0.1
         )
         
         # Consistent path
         self.persist_directory = os.getenv("DB_DIR", "./data/chroma_db")
-        self.faiss_path = os.path.join(self.persist_directory, "faiss_index")
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         
-        if os.path.exists(self.faiss_path):
-            self.vector_db = FAISS.load_local(
-                self.faiss_path, 
-                self.embeddings,
-                allow_dangerous_deserialization=True
+        if os.path.exists(self.persist_directory):
+            self.vector_db = Chroma(
+                persist_directory=self.persist_directory, 
+                embedding_function=self.embeddings
             )
-            self._initialize_retriever()
         else:
             self.vector_db = None
-            self.retriever = None
 
         # Initialize Tools
         self.search_tool = DuckDuckGoSearchRun()
@@ -81,112 +63,92 @@ class TelvynManager:
             def search_internal_knowledge(query: str) -> str:
                 """Search the internal Aetherial Systems technical documentation. 
                 Use this as the FIRST step for any company-specific questions."""
-                docs = self.retriever.invoke(query)
+                docs = self.vector_db.similarity_search(query, k=3)
                 return "\n\n".join([f"Source: {d.metadata.get('source', 'Unknown')}\nContent: {d.page_content}" for d in docs])
             
             self.tools.append(search_internal_knowledge)
 
-        # Clean ReAct Prompt for Stability
-        template = """Answer the following questions as best you can. You have access to the following tools:
+        # Build LangGraph
+        self._build_graph()
 
-{tools}
+    def _build_graph(self):
+        # Define the nodes
+        def call_model(state: AgentState):
+            messages = state['messages']
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", "You are Telvyn, a premium futuristic AI assistant. Be concise, technical, and elegant."),
+                MessagesPlaceholder(variable_name="messages"),
+            ])
+            chain = prompt | self.llm.bind_tools(self.tools)
+            response = chain.invoke(messages)
+            return {"messages": [response]}
 
-Use the following format:
+        # Define the tool node
+        tool_node = ToolNode(self.tools)
 
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+        # Define the graph
+        workflow = StateGraph(AgentState)
 
-Begin!
+        # Add nodes
+        workflow.add_node("agent", call_model)
+        workflow.add_node("action", tool_node)
 
-Chat History:
-{chat_history}
+        # Set entry point
+        workflow.set_entry_point("agent")
 
-Question: {input}
+        # Add conditional edges
+        def should_continue(state: AgentState):
+            last_message = state['messages'][-1]
+            if last_message.tool_calls:
+                return "action"
+            return END
 
-Thought: {agent_scratchpad}"""
+        workflow.add_conditional_edges("agent", should_continue)
+        workflow.add_edge("action", "agent")
 
-        self.prompt = PromptTemplate.from_template(template)
-
-        # Create ReAct Agent
-        self.agent = create_react_agent(self.llm, self.tools, self.prompt)
-        self.agent_executor = AgentExecutor(
-            agent=self.agent, 
-            tools=self.tools, 
-            verbose=True, 
-            handle_parsing_errors=True,
-            max_iterations=5
-        )
+        # Compile
+        self.app = workflow.compile()
 
     def stream_response(self, user_input, chat_history=[], session_id="default_session"):
-        """Streams the response from the agent. Yields text chunks."""
-        history_str = ""
+        """Streams the response from the LangGraph agent. Yields thought and text chunks."""
+        # Format history for LangGraph
+        messages = []
         for msg in chat_history[-5:]:
-            role = "Human" if msg['role'] == "human" else "AI"
-            history_str += f"{role}: {msg['content']}\n"
+            if msg['role'] == "human":
+                messages.append(HumanMessage(content=msg['content']))
+            else:
+                messages.append(AIMessage(content=msg['content']))
+        
+        messages.append(HumanMessage(content=user_input))
 
         try:
-            # We track the last chunk to see if it contains usage metadata
-            last_output = ""
-            for chunk in self.agent_executor.stream({
-                "input": user_input,
-                "chat_history": history_str
-            }):
-                if "output" in chunk:
-                    last_output = chunk["output"]
-                    yield last_output
-                
-                # In LangChain 0.3, usage info is often in the 'metadata' or 'run' details
-                # If using NVIDIA NIM, we can also estimate based on characters if metadata is missing
-            
-            # Simple heuristic if usage metadata is not directly in the executor stream chunks
-            # In a real production environment, we'd use a CallbackHandler to get exact counts
-            prompt_tokens = len(str(user_input) + str(history_str)) // 4
-            completion_tokens = len(str(last_output)) // 4
+            full_response = ""
+            # Using stream to capture events
+            for event in self.app.stream({"messages": messages}, stream_mode="updates"):
+                for node, update in event.items():
+                    if node == "agent":
+                        msg = update["messages"][-1]
+                        if msg.tool_calls:
+                            # Yield thought/action info
+                            for tc in msg.tool_calls:
+                                yield f"THOUGHT: Executing {tc['name']}..."
+                        else:
+                            # Final content
+                            full_response = msg.content
+                            yield full_response
+                    elif node == "action":
+                        yield "THOUGHT: Tool execution complete. Refining response..."
+
+            # Logging usage
+            prompt_tokens = len(str(user_input)) // 4
+            completion_tokens = len(full_response) // 4
             log_token_usage(session_id, prompt_tokens, completion_tokens)
             
         except Exception as e:
             yield f"Telvyn is experiencing a technical fault: {str(e)}"
 
-    def _initialize_retriever(self):
-        try:
-            # 1. Vector Store Retriever
-            vector_retriever = self.vector_db.as_retriever(search_kwargs={"k": 3})
-            
-            # 2. BM25 Retriever
-            # Extract documents from FAISS
-            docs = []
-            for doc_id in self.vector_db.index_to_docstore_id.values():
-                docs.append(self.vector_db.docstore.search(doc_id))
-            
-            bm25_retriever = BM25Retriever.from_documents(docs)
-            bm25_retriever.k = 2
-            
-            # 3. Hybrid Ensemble
-            from langchain.retrievers import EnsembleRetriever
-            self.retriever = EnsembleRetriever(
-                retrievers=[vector_retriever, bm25_retriever],
-                weights=[0.7, 0.3]
-            )
-        except Exception as e:
-            print(f"Retriever Init Error: {e}")
-            self.retriever = None
-
     def get_response(self, user_input, chat_history=[]):
-        history_str = ""
-        for msg in chat_history[-5:]:
-            history_str += f"{msg['role'].capitalize()}: {msg['content']}\n"
-
-        try:
-            response = self.agent_executor.invoke({
-                "input": user_input,
-                "chat_history": history_str
-            })
-            return response["output"]
-        except Exception as e:
-            return f"Telvyn is experiencing a technical fault: {str(e)}"
+        # Wrapper for non-streaming calls
+        messages = [HumanMessage(content=user_input)]
+        result = self.app.invoke({"messages": messages})
+        return result["messages"][-1].content

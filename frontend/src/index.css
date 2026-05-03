@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-deep: #050816;
+  --color-background-mid: #071226;
+  --color-background-light: #0A0F1F;
+  
+  --color-neon-blue: #00BFFF;
+  --color-neon-purple: #7A5CFF;
+  --color-neon-violet: #A855F7;
+  --color-neon-cyan: #00E5FF;
+  --color-neon-pink: #FF4D9D;
+  
+  --radius-2xl: 20px;
+  --radius-3xl: 32px;
+}
+
+@layer base {
+  body {
+    @apply bg-background-deep text-white font-sans overflow-hidden;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+  }
+  
+  .neon-border-blue {
+    @apply border-neon-blue/30 shadow-[0_0_15px_rgba(0,191,255,0.2)];
+  }
+  
+  .neon-border-purple {
+    @apply border-neon-purple/30 shadow-[0_0_15px_rgba(122,92,255,0.2)];
+  }
+  
+  .neon-text-glow {
+    text-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+  }
+}
+
+/* Custom scrollbar for cyberpunk look */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 191, 255, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 191, 255, 0.5);
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}

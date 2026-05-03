@@ -12,3 +12,12 @@ sqlalchemy
 pydantic>=2.0
 faiss-cpu
 duckduckgo-search
+fastapi
+uvicorn
+sse-starlette
+python-multipart
+langgraph
+langchain-groq
+chromadb
+slowapi
+redis
