@@ -6,8 +6,22 @@ from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.retrievers import EnsembleRetriever
-from langchain_community.retrievers import BM25Retriever
+
+# Robust Retriever Imports
+try:
+    from langchain.retrievers import EnsembleRetriever
+    from langchain.retrievers import BM25Retriever
+except ImportError:
+    try:
+        from langchain_classic.retrievers import EnsembleRetriever
+        from langchain_classic.retrievers import BM25Retriever
+    except ImportError:
+        from langchain_community.retrievers import BM25Retriever
+        # Ensemble might be in community in some versions
+        try:
+            from langchain_community.retrievers import EnsembleRetriever
+        except ImportError:
+            EnsembleRetriever = None
 from langchain_core.tools import tool
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_community.tools import DuckDuckGoSearchRun
