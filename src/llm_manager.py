@@ -23,7 +23,12 @@ except ImportError:
         except ImportError:
             EnsembleRetriever = None
 from langchain_core.tools import tool
-from langchain.agents import AgentExecutor, create_react_agent
+# Robust Agent Imports
+try:
+    from langchain.agents import AgentExecutor, create_react_agent
+except ImportError:
+    from langchain_classic.agents import AgentExecutor, create_react_agent
+
 from langchain_community.tools import DuckDuckGoSearchRun
 from src.tools.system_tools import get_system_status, generate_secure_password, test_network_latency
 from src.tools.knowledge_tools import remember_fact
