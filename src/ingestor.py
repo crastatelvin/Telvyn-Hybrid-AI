@@ -5,7 +5,7 @@ import re
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -78,15 +78,22 @@ class TelvynIngestor:
         )
         chunks = text_splitter.split_documents(docs_to_process)
 
-        print(f"Updating ChromaDB at {self.db_dir}...")
-        # Initialize or load existing DB
-        vector_db = Chroma(
-            persist_directory=self.db_dir,
-            embedding_function=self.embeddings
-        )
+        print(f"Updating FAISS index at {self.db_dir}...")
+        faiss_index_path = os.path.join(self.db_dir, "faiss_index")
         
-        # Add new documents
-        vector_db.add_documents(chunks)
+        # Initialize or load existing DB
+        if os.path.exists(faiss_index_path):
+            vector_db = FAISS.load_local(
+                faiss_index_path, 
+                self.embeddings,
+                allow_dangerous_deserialization=True # Required for loading local FAISS
+            )
+            vector_db.add_documents(chunks)
+        else:
+            vector_db = FAISS.from_documents(chunks, self.embeddings)
+        
+        # Save FAISS index
+        vector_db.save_local(faiss_index_path)
         
         # Update hash file
         with open(hash_file, "w") as f:

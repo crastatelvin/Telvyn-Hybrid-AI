@@ -10,4 +10,5 @@ rank_bm25
 gitpython
 sqlalchemy
 pydantic>=2.0
+faiss-cpu
 duckduckgo-search

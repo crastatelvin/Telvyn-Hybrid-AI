@@ -4,7 +4,7 @@ import random
 import time
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.prompts import PromptTemplate
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
@@ -13,9 +13,19 @@ from langchain.agents import AgentExecutor, create_react_agent
 from langchain_community.tools import DuckDuckGoSearchRun
 from src.tools.system_tools import get_system_status, generate_secure_password, test_network_latency
 from src.tools.knowledge_tools import remember_fact
+from src.database import engine
+from langchain.globals import set_llm_cache
+from langchain_community.cache import SQLAlchemyCache
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# --- CACHING SETUP ---
+# Enable persistent caching of LLM responses in our SQLite database
+try:
+    set_llm_cache(SQLAlchemyCache(engine))
+except Exception as e:
+    print(f"Caching initialization failed: {e}")
 
 # Tools are now imported from src.tools
 
@@ -29,12 +39,14 @@ class TelvynManager:
         
         # Consistent path
         self.persist_directory = os.getenv("DB_DIR", "./data/chroma_db")
+        self.faiss_path = os.path.join(self.persist_directory, "faiss_index")
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         
-        if os.path.exists(self.persist_directory):
-            self.vector_db = Chroma(
-                persist_directory=self.persist_directory,
-                embedding_function=self.embeddings
+        if os.path.exists(self.faiss_path):
+            self.vector_db = FAISS.load_local(
+                self.faiss_path, 
+                self.embeddings,
+                allow_dangerous_deserialization=True
             )
             self._initialize_retriever()
         else:
@@ -149,14 +161,12 @@ Thought: {agent_scratchpad}"""
             vector_retriever = self.vector_db.as_retriever(search_kwargs={"k": 3})
             
             # 2. BM25 Retriever
-            data = self.vector_db.get()
-            docs = data['documents']
-            metadatas = data['metadatas']
+            # Extract documents from FAISS
+            docs = []
+            for doc_id in self.vector_db.index_to_docstore_id.values():
+                docs.append(self.vector_db.docstore.search(doc_id))
             
-            from langchain.schema import Document
-            langchain_docs = [Document(page_content=d, metadata=m) for d, m in zip(docs, metadatas)]
-            
-            bm25_retriever = BM25Retriever.from_documents(langchain_docs)
+            bm25_retriever = BM25Retriever.from_documents(docs)
             bm25_retriever.k = 2
             
             # 3. Hybrid Ensemble
