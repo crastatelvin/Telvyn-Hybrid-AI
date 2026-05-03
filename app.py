@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from src.llm_manager import TelvynManager
 from src.ingestor import TelvynIngestor
-from src.database import init_db, save_message, get_chat_history
+from src.database import init_db, save_message, get_chat_history, get_total_tokens
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,46 +16,76 @@ st.set_page_config(page_title="Telvyn Hybrid AI", page_icon="🧠", layout="wide
 init_db()
 SESSION_ID = "default_session" # Can be dynamic for multi-user
 
-# Custom CSS for Premium Glassmorphism Look
+# Enhanced UI/UX with 3D Background and Glassmorphism
 st.markdown("""
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
     .main {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        background: transparent !important;
         color: #f8fafc;
     }
+    #three-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+    }
     .stChatMessage {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
+        border-radius: 20px;
         padding: 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 1.5rem;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     }
     .stSidebar {
-        background: rgba(15, 23, 42, 0.95);
+        background: rgba(15, 23, 42, 0.8) !important;
+        backdrop-filter: blur(20px);
         border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .stButton>button {
-        border-radius: 8px;
-        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
-        border: none;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-    }
-    h1, h2, h3 {
-        font-family: 'Inter', sans-serif;
-        font-weight: 700;
-        letter-spacing: -0.025em;
+    .token-counter {
+        background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 20px;
     }
     </style>
+    <canvas id="three-canvas"></canvas>
+    <script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-canvas'), alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
+    const material = new THREE.MeshNormalMaterial({ wireframe: true });
+    const torusKnot = new THREE.Mesh(geometry, material);
+    scene.add(torusKnot);
+
+    camera.position.z = 30;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        torusKnot.rotation.x += 0.01;
+        torusKnot.rotation.y += 0.01;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    </script>
     """, unsafe_allow_html=True)
 
-st.title("🧠 Telvyn: Hybrid AI Advisor")
+st.title("🧠 Telvyn: Technical Architect")
 st.markdown("---")
 
 # Sidebar for Management
@@ -116,6 +146,14 @@ with st.sidebar:
                     st.error(f"Sync failed: {e}")
         
     st.markdown("---")
+    st.header("📊 Usage Telemetry")
+    total_tokens = get_total_tokens(SESSION_ID)
+    st.markdown(f"""
+        <div class="token-counter">
+            Total Tokens: {total_tokens:,}
+        </div>
+    """, unsafe_allow_html=True)
+
     if st.button("🧹 Clear History"):
         # We could delete from DB here, but for now just clear session
         st.session_state.messages = []
@@ -156,7 +194,7 @@ if prompt := st.chat_input("Ask Telvyn anything..."):
             save_message(SESSION_ID, "human", prompt)
             
             # Stream the response
-            for chunk in st.session_state.telvyn.stream_response(prompt, st.session_state.messages):
+            for chunk in st.session_state.telvyn.stream_response(prompt, st.session_state.messages, SESSION_ID):
                 full_response += chunk
                 response_placeholder.markdown(full_response + "▌")
             

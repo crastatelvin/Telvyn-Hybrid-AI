@@ -100,14 +100,14 @@ class TelvynManager:
 
 {tools}
 
-To use a tool, please use the format:
+To use a tool, please use the exact format:
 
 Thought: Do I need to use a tool? Yes
-Action: [{tool_names}]
-Action Input: the input
-Observation: the result
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
 
-When you have the final answer, use:
+When you have the final answer, use the exact format:
 
 Thought: Do I need to use a tool? No
 Final Answer: [Your fluid, dynamic response here]

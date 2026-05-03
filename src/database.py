@@ -25,6 +25,15 @@ class ToolUsage(Base):
     input_data = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
+class TokenUsage(Base):
+    __tablename__ = 'token_usage'
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String(255))
+    prompt_tokens = Column(Integer)
+    completion_tokens = Column(Integer)
+    total_tokens = Column(Integer)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 # Database Setup
 SQL_DB_URL = os.getenv("SQL_DB_URL", "sqlite:///./data/telvyn.db")
 db_dir = os.path.dirname(SQL_DB_URL.replace("sqlite:///",""))
@@ -68,5 +77,32 @@ def log_tool_usage(session_id, tool_name, input_data):
         db.commit()
     except Exception as e:
         print(f"Error logging tool usage: {e}")
+    finally:
+        db.close()
+
+def log_token_usage(session_id, prompt_tokens, completion_tokens):
+    db = SessionLocal()
+    try:
+        usage = TokenUsage(
+            session_id=session_id, 
+            prompt_tokens=prompt_tokens, 
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens
+        )
+        db.add(usage)
+        db.commit()
+    except Exception as e:
+        print(f"Error logging token usage: {e}")
+    finally:
+        db.close()
+
+def get_total_tokens(session_id):
+    db = SessionLocal()
+    try:
+        from sqlalchemy import func
+        result = db.query(func.sum(TokenUsage.total_tokens)).filter(
+            TokenUsage.session_id == session_id
+        ).scalar()
+        return result or 0
     finally:
         db.close()

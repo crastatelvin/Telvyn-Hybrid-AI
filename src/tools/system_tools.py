@@ -20,8 +20,13 @@ class PasswordGenInput(BaseModel):
 @tool(args_schema=PasswordGenInput)
 def generate_secure_password(length: int = 24) -> str:
     """Generates a high-entropy technical password for system configurations."""
+    try:
+        # Explicitly ensure length is an integer
+        clean_length = int(float(str(length)))
+    except:
+        clean_length = 24
     alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
-    password = ''.join(secrets.choice(alphabet) for i in range(length))
+    password = ''.join(secrets.choice(alphabet) for i in range(clean_length))
     return f"Generated Secure Password: {password}"
 
 class NetworkPingInput(BaseModel):
