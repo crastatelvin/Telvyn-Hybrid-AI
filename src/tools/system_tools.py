@@ -21,9 +21,12 @@ class PasswordGenInput(BaseModel):
 def generate_secure_password(length: int = 24) -> str:
     """Generates a high-entropy technical password for system configurations."""
     try:
+        print(f"DEBUG: generate_secure_password received length={length} of type {type(length)}")
         # Explicitly ensure length is an integer
         clean_length = int(float(str(length)))
-    except:
+        print(f"DEBUG: clean_length={clean_length}")
+    except Exception as e:
+        print(f"DEBUG: Error in password tool: {e}")
         clean_length = 24
     alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
     password = ''.join(secrets.choice(alphabet) for i in range(clean_length))
