@@ -1,22 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, User } from 'lucide-react';
+import { Cpu, Network, BarChart3, Zap } from 'lucide-react';
 import axios from 'axios';
 
 import { CyberSidebar } from './components/CyberSidebar';
 import { GlassChat } from './components/GlassChat';
 import { NeonInput } from './components/NeonInput';
 import { ThreeBackground } from './components/ThreeBackground';
+import { NeuralMap } from './components/NeuralMap';
+import { Analytics } from './components/Analytics';
 
 export default function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [activeTab, setActiveTab] = useState('intelligence');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentThought, setCurrentThought] = useState('');
   const [telemetry, setTelemetry] = useState({ total_tokens: 0 });
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState('default_session');
+  const [activeChartData, setActiveChartData] = useState(null);
   
   const scrollRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -64,13 +68,14 @@ export default function App() {
     const newSid = `session_${Math.random().toString(36).substr(2, 9)}`;
     setCurrentSessionId(newSid);
     setMessages([]);
+    setActiveTab('intelligence');
   };
 
   const streamChat = async () => {
     if (!input.trim()) return;
 
     setIsStreaming(true);
-    setCurrentThought('Analyzing request...');
+    setCurrentThought('Initializing Supervisor...');
     
     const userMsg = { role: 'human', content: input };
     setMessages(prev => [...prev, userMsg]);
@@ -102,14 +107,15 @@ export default function App() {
         const lines = chunk.split('\n');
         
         for (const line of lines) {
-          if (line.trim().startsWith('event: thought')) {
-            // Next line will be data
-          } else if (line.trim().startsWith('data: ')) {
+          if (line.trim().startsWith('data: ')) {
             const dataStr = line.replace('data: ', '').trim();
             
-            // Heuristic to distinguish thoughts from content
-            if (dataStr.startsWith('Exec') || dataStr.includes('Tool') || dataStr.includes('Refining')) {
-              setCurrentThought(dataStr);
+            if (dataStr.startsWith('THOUGHT:')) {
+              setCurrentThought(dataStr.replace('THOUGHT: ', ''));
+            } else if (dataStr.startsWith('CHART_DATA:')) {
+              const chartInfo = JSON.parse(dataStr.replace('CHART_DATA: ', ''));
+              setActiveChartData(chartInfo.data);
+              setActiveTab('analytics');
             } else {
               setCurrentThought('');
               accumulatedResponse += dataStr;
@@ -144,6 +150,12 @@ export default function App() {
     }
   };
 
+  const tabs = [
+    { id: 'intelligence', label: 'Neural Intelligence', icon: Cpu },
+    { id: 'map', label: 'Knowledge Map', icon: Network },
+    { id: 'analytics', label: 'Corporate Analytics', icon: BarChart3 },
+  ];
+
   return (
     <div className="flex h-screen w-full bg-background-deep p-6 gap-6 relative overflow-hidden">
       <ThreeBackground />
@@ -158,15 +170,26 @@ export default function App() {
 
       <main className="flex-1 z-10 flex flex-col gap-6 min-w-0">
         <div className="flex items-center justify-between px-4">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
-              <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">System Online</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">
-              <span className="text-[10px] font-bold text-white/40 tracking-widest uppercase">Tokens:</span>
-              <span className="text-[10px] font-black text-neon-blue">{telemetry.total_tokens.toLocaleString()}</span>
-            </div>
+          <div className="flex gap-4 p-1 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-xl">
+            {tabs.map(tab => (
+              <motion.button
+                key={tab.id}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                  activeTab === tab.id ? 'bg-neon-blue text-background-deep shadow-lg shadow-neon-blue/20' : 'text-white/40 hover:text-white'
+                }`}
+              >
+                <tab.icon size={14} />
+                {tab.label}
+              </motion.button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">
+            <span className="text-[10px] font-bold text-white/40 tracking-widest uppercase">System Core:</span>
+            <span className="text-[10px] font-black text-neon-blue">{telemetry.total_tokens.toLocaleString()} TOKENS</span>
           </div>
         </div>
 
@@ -175,14 +198,17 @@ export default function App() {
           animate={{ opacity: 1, scale: 1 }}
           className="flex-1 flex flex-col p-0 overflow-hidden glass-panel rounded-3xl bg-black/20 neon-border-purple"
         >
-          <GlassChat messages={messages} scrollRef={scrollRef} currentThought={currentThought} />
-          <NeonInput 
-            input={input} 
-            setInput={setInput} 
-            onSend={streamChat} 
-            isStreaming={isStreaming}
-            onStop={handleStop}
-          />
+          {activeTab === 'intelligence' && (
+            <AnimatePresence mode="wait">
+              <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col overflow-hidden">
+                <GlassChat messages={messages} scrollRef={scrollRef} currentThought={currentThought} />
+                <NeonInput input={input} setInput={setInput} onSend={streamChat} isStreaming={isStreaming} onStop={handleStop} />
+              </motion.div>
+            </AnimatePresence>
+          )}
+
+          {activeTab === 'map' && <NeuralMap sessions={sessions} />}
+          {activeTab === 'analytics' && <Analytics data={activeChartData} />}
         </motion.div>
       </main>
     </div>

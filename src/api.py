@@ -2,7 +2,7 @@ import os
 import json
 import asyncio
 from typing import List
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Request, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
@@ -20,13 +20,25 @@ app = FastAPI(title="Telvyn Hybrid AI API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class FastCORS(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            response = Response(status_code=204)
+        else:
+            try:
+                response = await call_next(request)
+            except Exception as e:
+                response = Response(content=json.dumps({"error": str(e)}), status_code=500, media_type="application/json")
+        
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
+
+app.add_middleware(FastCORS)
 
 # Initialize Database and Manager
 init_db()
@@ -51,28 +63,25 @@ async def telemetry(session_id: str):
 
 @app.post("/chat")
 @limiter.limit("40/minute")
-async def chat(request: ChatRequest, api_request: Request):
+async def chat(request: Request, chat_request: ChatRequest):
     async def event_generator():
         # Get history for context
-        history_msgs = get_chat_history(request.session_id)
+        history_msgs = get_chat_history(chat_request.session_id)
         
         # Save user message
-        save_message(request.session_id, "human", request.message)
+        save_message(chat_request.session_id, "human", chat_request.message)
         
         full_response = ""
         # Stream response
-        for chunk in telvyn.stream_response(request.message, history_msgs, request.session_id):
-            # Check if chunk is a thought
-            if chunk.startswith("THOUGHT:"):
-                yield {"event": "thought", "data": chunk.replace("THOUGHT: ", "")}
-            else:
+        for chunk in telvyn.stream_response(chat_request.message, history_msgs, chat_request.session_id):
+            if not chunk.startswith("THOUGHT:") and not chunk.startswith("CHART_DATA:"):
                 full_response += chunk
-                yield {"data": chunk}
+            yield {"data": chunk}
             await asyncio.sleep(0.01) # Yield to event loop
             
         # Save AI message after stream ends
         if full_response:
-            save_message(request.session_id, "ai", full_response)
+            save_message(chat_request.session_id, "ai", full_response)
 
     return EventSourceResponse(event_generator())
 
