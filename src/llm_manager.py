@@ -26,11 +26,12 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from src.tools.system_tools import get_system_status, generate_secure_password, test_network_latency
 from src.tools.knowledge_tools import remember_fact
 from src.database import engine, log_token_usage
-from langchain.globals import set_llm_cache
-from langchain_community.cache import SQLAlchemyCache
-from dotenv import load_dotenv
 
-load_dotenv()
+set_llm_cache = safe_import(['langchain_core.globals', 'langchain.globals'], 'set_llm_cache')
+SQLAlchemyCache = safe_import(['langchain_community.cache', 'langchain.cache'], 'SQLAlchemyCache')
+load_dotenv = safe_import(['dotenv'], 'load_dotenv')
+if load_dotenv:
+    load_dotenv()
 
 # --- CACHING SETUP ---
 # Enable persistent caching of LLM responses in our SQLite database
