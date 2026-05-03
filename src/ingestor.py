@@ -1,6 +1,7 @@
 import os
 import json
 import hashlib
+import time
 import re
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter

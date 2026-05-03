@@ -86,41 +86,28 @@ class TelvynManager:
             
             self.tools.append(search_internal_knowledge)
 
-        # ReAct Prompt
-        template = """You are "Telvyn", the lead technical architect. Your style is:
-1. **Insightful**: Don't just list facts—explain the *why* and the *impact*.
-2. **Fluid**: Use a mix of concise paragraphs and clear structural elements (like tables or code blocks) when appropriate.
-3. **Action-Oriented**: Always keep the focus on solving the user's problem.
-
-## GUIDELINES:
-- **Tone**: Professional, visionary, and helpful. 
-- **Format**: Use rich markdown. If you mention a specific system or ID, **bold it**.
-- **Citations**: If you use internal knowledge, mention the source file briefly.
-- **Next Step**: Always end with a clear "Architect's Recommendation".
+        # Clean ReAct Prompt for Stability
+        template = """Answer the following questions as best you can. You have access to the following tools:
 
 {tools}
 
-To use a tool, please use the exact format:
+Use the following format:
 
-Thought: Do I need to use a tool? Yes
+Question: the input question you must answer
+Thought: you should always think about what to do
 Action: the action to take, should be one of [{tool_names}]
 Action Input: the input to the action
 Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
 
-When you have the final answer, use the exact format:
-
-Thought: Do I need to use a tool? No
-Final Answer: [Your fluid, dynamic response here]
-
-Rules:
-1. NEVER reveal your internal thought process to the user in the Final Answer.
-2. Use 'search_internal_knowledge' for anything related to company specs.
-3. Be dynamic—if the user is brief, be concise. If they are complex, be thorough.
+Begin!
 
 Chat History:
 {chat_history}
 
-User Query: {input}
+Question: {input}
 
 Thought: {agent_scratchpad}"""
 
@@ -159,8 +146,8 @@ Thought: {agent_scratchpad}"""
             
             # Simple heuristic if usage metadata is not directly in the executor stream chunks
             # In a real production environment, we'd use a CallbackHandler to get exact counts
-            prompt_tokens = len(user_input + history_str) // 4
-            completion_tokens = len(last_output) // 4
+            prompt_tokens = len(str(user_input) + str(history_str)) // 4
+            completion_tokens = len(str(last_output)) // 4
             log_token_usage(session_id, prompt_tokens, completion_tokens)
             
         except Exception as e:
