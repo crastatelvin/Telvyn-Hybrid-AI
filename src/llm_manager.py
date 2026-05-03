@@ -2,33 +2,26 @@ import os
 import secrets
 import random
 import time
+import importlib
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-
-# Robust Retriever Imports
-try:
-    from langchain.retrievers import EnsembleRetriever
-    from langchain.retrievers import BM25Retriever
-except ImportError:
-    try:
-        from langchain_classic.retrievers import EnsembleRetriever
-        from langchain_classic.retrievers import BM25Retriever
-    except ImportError:
-        from langchain_community.retrievers import BM25Retriever
-        # Ensemble might be in community in some versions
+def safe_import(module_paths, class_name):
+    for path in module_paths:
         try:
-            from langchain_community.retrievers import EnsembleRetriever
-        except ImportError:
-            EnsembleRetriever = None
-from langchain_core.tools import tool
-# Robust Agent Imports
-try:
-    from langchain.agents import AgentExecutor, create_react_agent
-except ImportError:
-    from langchain_classic.agents import AgentExecutor, create_react_agent
+            mod = importlib.import_module(path)
+            return getattr(mod, class_name)
+        except (ImportError, AttributeError, ModuleNotFoundError):
+            continue
+    return None
 
+EnsembleRetriever = safe_import(['langchain.retrievers', 'langchain_classic.retrievers', 'langchain_community.retrievers'], 'EnsembleRetriever')
+BM25Retriever = safe_import(['langchain.retrievers', 'langchain_classic.retrievers', 'langchain_community.retrievers'], 'BM25Retriever')
+AgentExecutor = safe_import(['langchain.agents', 'langchain_classic.agents'], 'AgentExecutor')
+create_react_agent = safe_import(['langchain.agents', 'langchain_classic.agents'], 'create_react_agent')
+
+from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from src.tools.system_tools import get_system_status, generate_secure_password, test_network_latency
 from src.tools.knowledge_tools import remember_fact
