@@ -5,28 +5,16 @@ import json
 from datetime import datetime
 from src.llm_manager import TelvynManager
 from src.ingestor import TelvynIngestor
+from src.database import init_db, save_message, get_chat_history
 from dotenv import load_dotenv
 
 load_dotenv()
 
 st.set_page_config(page_title="Telvyn Hybrid AI", page_icon="🧠", layout="wide")
 
-# Persistence Helpers
-HISTORY_FILE = "data/chat_history.json"
-
-def save_history(messages):
-    os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(messages, f)
-
-def load_history():
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "r") as f:
-                return json.load(f)
-        except:
-            return []
-    return []
+# Database Initialization
+init_db()
+SESSION_ID = "default_session" # Can be dynamic for multi-user
 
 # Custom CSS for Premium Look
 st.markdown("""
@@ -108,13 +96,12 @@ with st.sidebar:
                     st.error(f"Sync failed: {e}")
         
     st.markdown("---")
-    if st.button("🧹 New Chat / Clear History"):
+    if st.button("🧹 Clear History"):
+        # We could delete from DB here, but for now just clear session
         st.session_state.messages = []
-        if os.path.exists(HISTORY_FILE):
-            os.remove(HISTORY_FILE)
         st.rerun()
 
-    st.info("Telvyn uses local RAG and Groq (Llama 3.3 70B) for inference.")
+    st.info("Telvyn uses local RAG and NVIDIA NIM (Llama 3.1) for inference.")
 
 # Initialize Manager
 try:
@@ -125,7 +112,7 @@ except Exception as e:
 
 # Chat History Management
 if "messages" not in st.session_state:
-    st.session_state.messages = load_history()
+    st.session_state.messages = get_chat_history(SESSION_ID)
 
 # Display Chat History
 for message in st.session_state.messages:
@@ -141,12 +128,23 @@ if prompt := st.chat_input("Ask Telvyn anything..."):
 
     # Generate Response
     with st.chat_message("ai"):
-        with st.spinner("Telvyn is thinking..."):
-            try:
-                response = st.session_state.telvyn.get_response(prompt)
-                st.markdown(response)
-                st.session_state.messages.append({"role": "ai", "content": response})
-                # Save after AI response
-                save_history(st.session_state.messages)
-            except Exception as e:
-                st.error(f"Error generating response: {e}")
+        response_placeholder = st.empty()
+        full_response = ""
+        
+        try:
+            # Save user message to DB
+            save_message(SESSION_ID, "human", prompt)
+            
+            # Stream the response
+            for chunk in st.session_state.telvyn.stream_response(prompt, st.session_state.messages):
+                full_response += chunk
+                response_placeholder.markdown(full_response + "▌")
+            
+            response_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "ai", "content": full_response})
+            
+            # Save AI message to DB
+            save_message(SESSION_ID, "ai", full_response)
+            
+        except Exception as e:
+            st.error(f"Error generating response: {e}")

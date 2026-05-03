@@ -2,7 +2,7 @@ import os
 import secrets
 import random
 import time
-from langchain_groq import ChatGroq
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -11,72 +11,19 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_core.tools import tool
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_community.tools import DuckDuckGoSearchRun
+from src.tools.system_tools import get_system_status, generate_secure_password, test_network_latency
+from src.tools.knowledge_tools import remember_fact
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- TECHNICAL TOOLS ---
-
-@tool
-def get_system_status(component_name: str) -> str:
-    """Returns the current operational status of an Aetherial Systems component. 
-    Use this when the user asks about the health or status of a specific system."""
-    statuses = ["Operational", "Degraded Performance", "Under Maintenance", "Critical Alert"]
-    status = random.choice(statuses)
-    return f"Component '{component_name}' is currently: {status}. [Verified: {time.strftime('%H:%M:%S')}]"
-
-@tool
-def generate_secure_password(length_input: str = "24") -> str:
-    """Generates a high-entropy technical password for system configurations. 
-    Input should be the desired length as a string."""
-    try:
-        length = int(str(length_input))
-    except:
-        length = 24
-    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
-    password = ''.join(secrets.choice(alphabet) for i in range(length))
-    return f"Generated Secure Password: {password}"
-
-@tool
-def test_network_latency(hostname: str) -> str:
-    """Simulates a network ping to a specific technical hostname. 
-    Use this when the user asks about connection speed or latency."""
-    latency = random.uniform(5.0, 150.0)
-    return f"Ping to '{hostname}': {latency:.2f}ms. Status: {'Stable' if latency < 100 else 'High Latency'}"
-
-@tool
-def remember_fact(training_input: str) -> str:
-    """Saves a new fact to the internal knowledge base. 
-    Format your input as: 'Title | Content'"""
-    try:
-        if "|" in training_input:
-            fact_title, fact_content = training_input.split("|", 1)
-        else:
-            fact_title = "User Fact " + time.strftime("%H%M%S")
-            fact_content = training_input
-            
-        safe_title = "".join([c if c.isalnum() else "_" for c in fact_title.strip().lower()])
-        filename = f"trained_fact_{safe_title}.md"
-        knowledge_dir = os.getenv("KNOWLEDGE_DIR", "./knowledge")
-        
-        if not os.path.exists(knowledge_dir):
-            os.makedirs(knowledge_dir)
-            
-        filepath = os.path.join(knowledge_dir, filename)
-        content = f"# Trained Fact: {fact_title.strip()}\n\nDate: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n{fact_content.strip()}\n"
-        
-        with open(filepath, "w") as f:
-            f.write(content)
-            
-        return f"SUCCESS: New fact saved to '{filename}'. IMPORTANT: Tell the user they MUST click 'Sync Knowledge Base' in the sidebar for me to actually learn it."
-    except Exception as e:
-        return f"ERROR saving fact: {str(e)}"
+# Tools are now imported from src.tools
 
 class TelvynManager:
     def __init__(self):
-        # Set up LLM
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+        # Set up LLM with NVIDIA NIM
+        self.llm = ChatNVIDIA(
+            model="meta/llama-3.1-70b-instruct",
             temperature=0.1
         )
         
@@ -173,6 +120,28 @@ Thought: {agent_scratchpad}"""
             handle_parsing_errors=True,
             max_iterations=5
         )
+
+    def stream_response(self, user_input, chat_history=[]):
+        """Streams the response from the agent. Yields text chunks."""
+        history_str = ""
+        for msg in chat_history[-5:]:
+            role = "Human" if msg['role'] == "human" else "AI"
+            history_str += f"{role}: {msg['content']}\n"
+
+        try:
+            # Using the stream method of AgentExecutor
+            # Note: This yields events, we need to extract the 'output' or 'steps'
+            for chunk in self.agent_executor.stream({
+                "input": user_input,
+                "chat_history": history_str
+            }):
+                if "output" in chunk:
+                    yield chunk["output"]
+                elif "actions" in chunk:
+                    # Optional: Could yield tool usage thoughts here
+                    pass
+        except Exception as e:
+            yield f"Telvyn is experiencing a technical fault: {str(e)}"
 
     def _initialize_retriever(self):
         try:

@@ -1,11 +1,13 @@
 streamlit
-langchain>=0.1.0,<0.2.0
-langchain-community>=0.0.10,<0.1.0
-langchain-groq
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-nvidia-ai-endpoints
+langgraph
 python-dotenv
 chromadb
 sentence-transformers
 rank_bm25
 gitpython
-protobuf==3.20.0
+sqlalchemy
+pydantic>=2.0
 duckduckgo-search
