@@ -224,7 +224,8 @@ streamlit run app.py
 3.  **Consult:** Ask Telvyn technical questions. Observe him reasoning and choosing the right tools.
 4.  **Train:** Tell Telvyn a new fact. He will document it. Sync again to make him "remember" it forever.
 5.  **Reset:** Use the **"New Chat"** button in the sidebar to start a fresh architect session.
-
+6.  **Tool usage:** Use Duck Duck Go search for online research and find the required insights.
+7.  **Memory:** Save data through the chat input and recall when required.
 ---
 
 ## 📡 Tools Reference
