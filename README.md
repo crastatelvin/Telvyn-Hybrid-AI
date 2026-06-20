@@ -113,9 +113,10 @@ TELVYN addresses the gap between static RAG systems and live technical operation
 | 🌐 **Real-time Web Search** | Integrated DuckDuckGo tool for fetching live technical documentation and news. |
 | 🛠️ **System Toolbox** | Native tools for checking system status, simulating pings, and generating secure passwords. |
 | 🧠 **Interactive Training** | "Teach" Telvyn new facts via chat. He writes them to `.md` files and indexes them instantly. |
-| 🔐 **Admin Guard** | Password-protected sidebar for knowledge management, indexing, and history cleanup. |
-| 💾 **Session Persistence** | Automatic chat history storage in `data/chat_history.json` for persistent context. |
-| 🎨 **Premium Glassmorphism UI** | Sleek, dark-mode technical dashboard built with Streamlit and custom CSS. |
+| 🔐 **Correct Admin Login & Logout** | Persistent authentication state. Authorizing opens admin utilities (upload & sync), with a clean "Logout" button to return to User Mode. |
+| 📁 **Dynamic Named Workspaces** | Replaced raw session UUIDs with custom named workspaces (e.g. "Database Scaling"). Manage and create named sessions via sidebar. |
+| 📊 **Logical Sidebar Taxonomy** | Structured layout dividing controls into *Active Workspaces*, *Telemetry Metrics*, and *Admin Governance*. |
+| 🎨 **Ultra-Smooth Glassmorphic UI** | Premium dark-mode technical dashboard built with custom HSL gradients, Outfit & JetBrains Mono typography, and breathing reasoning indicators. |
 
 ---
 

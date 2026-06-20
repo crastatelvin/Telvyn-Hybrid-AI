@@ -1,20 +1,12 @@
-version: '3.8'
-
 services:
   telvyn-ai:
     build: .
+    container_name: telvyn-ai-agent
     ports:
-      - "8000:8000"
+      - "8501:8501"
     volumes:
       - ./data:/app/data
       - ./knowledge:/app/knowledge
     env_file:
       - .env
-    restart: always
-
-  # Redis for Rate Limiting scaling (optional but recommended for production)
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    restart: always
+    restart: unless-stopped

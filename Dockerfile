@@ -1,12 +1,3 @@
-# --- Stage 1: Build Frontend ---
-FROM node:20-slim as frontend-build
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/ ./
-RUN npm run build
-
-# --- Stage 2: Final Image ---
 FROM python:3.11-slim
 WORKDIR /app
 
@@ -16,20 +7,20 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install backend dependencies
+# Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install gunicorn uvicorn
 
-# Copy backend code
+# Copy source code and config
 COPY src/ ./src/
+COPY app.py .
 COPY .env .
 
-# Copy built frontend
-COPY --from=frontend-build /app/frontend/dist ./static
+# Create volume directories
+RUN mkdir -p data/chroma_db knowledge/internal knowledge/trained
 
-# Expose port
-EXPOSE 8000
+# Expose Streamlit port
+EXPOSE 8501
 
-# Command to run with Gunicorn for scaling
-CMD ["gunicorn", "src.api:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+# Start Streamlit application
+CMD ["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
