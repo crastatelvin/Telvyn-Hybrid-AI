@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/telvyn-logo.png" alt="Telvyn logo" width="180"/>
+
 # 🧠 TELVYN
 
 ### Hybrid Technical Architect — RAG-Powered Intelligence With Real-time Tool Integration
